@@ -1,0 +1,7 @@
+ticker,name,asset_class
+VOO,Vanguard S&P 500 ETF,stock
+QQQ,Invesco QQQ (Nasdaq 100),stock
+AAPL,Apple Inc.,stock
+MSFT,Microsoft Corp.,stock
+BND,Vanguard Total Bond Market,bond
+TLT,20+ Year Treasury Bond ETF,bond
