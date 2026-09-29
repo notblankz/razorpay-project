@@ -122,10 +122,19 @@ def test_post_drift_needs_rebalance_true_when_far(client):
     assert data["needs_rebalance"] is True
 
 
-def test_post_drift_missing_target_400(client):
+def test_post_drift_missing_target_uses_default(client):
     body = {"holdings": [{"ticker": "VOO", "shares": 10}]}
     resp = client.post("/drift", json=body)
-    assert resp.status_code == 400
+    assert resp.status_code == 200
+    assert resp.get_json()["target_allocation"] == {"stock": 0.6, "bond": 0.4}
+
+
+def test_post_drift_empty_body_uses_sample_and_default(client):
+    resp = client.post("/drift", json={})
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["target_allocation"] == {"stock": 0.6, "bond": 0.4}
+    assert set(data["current_allocation"]) <= {"stock", "bond"}
 
 
 def test_post_drift_non_numeric_target_400(client):

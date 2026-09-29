@@ -92,6 +92,24 @@ def _parse_holdings(body: dict) -> list[dict]:
     return parsed
 
 
+def _holdings_from_body(body: dict) -> list[dict]:
+    """Return holdings from the request body, or the sample portfolio default.
+
+    If the body omits 'holdings' entirely, the committed sample portfolio
+    (data/holdings.csv) is used — so these endpoints are callable with an empty
+    body. If 'holdings' is present but malformed, validation still raises 400.
+
+    Args:
+        body: The parsed JSON request body.
+
+    Returns:
+        A validated list of holding dicts.
+    """
+    if "holdings" not in body:
+        return load_holdings()
+    return _parse_holdings(body)
+
+
 def _parse_target(body: dict) -> dict[str, float]:
     """Validate and normalize the 'target' allocation field of a request body.
 
@@ -214,13 +232,14 @@ def post_drift():
         "holdings": [{"ticker": "VOO", "shares": 50}, ...],
         "target": {"stock": 0.6, "bond": 0.4}
     }
-    Returns current class allocation, the target, signed drift, per-class band
-    breaches and a needs_rebalance flag, all using the 5/25 rule from
-    rebalance.py.
+    Both fields are optional: 'holdings' defaults to the sample portfolio and
+    'target' defaults to 60/40 stock/bond, so this is callable with an empty
+    body. Returns current class allocation, the target, signed drift, per-class
+    band breaches and a needs_rebalance flag, using the 5/25 rule.
     """
     body = request.get_json(silent=True) or {}
-    holdings = _parse_holdings(body)
-    target = _parse_target(body)
+    holdings = _holdings_from_body(body)
+    target = _parse_target(body) if body.get("target") else DEFAULT_TARGET
 
     prices = load_latest_prices()
     classes = load_asset_classes()
@@ -261,10 +280,12 @@ def post_rebalance_plan():
                       "cost_basis": 450, "long_term": true}, ...],
         "target": {"stock": 0.6, "bond": 0.4}   # optional; defaults to 60/40
     }
-    cost_basis / long_term are optional per holding and drive the simulated tax.
+    Both fields are optional: 'holdings' defaults to the sample portfolio and
+    'target' defaults to 60/40. cost_basis / long_term are optional per holding
+    and drive the simulated tax.
     """
     body = request.get_json(silent=True) or {}
-    holdings = _parse_holdings(body)
+    holdings = _holdings_from_body(body)
     target = _parse_target(body) if body.get("target") else DEFAULT_TARGET
 
     prices = load_latest_prices()

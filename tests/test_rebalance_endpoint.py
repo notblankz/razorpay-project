@@ -72,6 +72,15 @@ def test_post_rebalance_plan_bad_holdings_400(client):
     assert resp.status_code == 400
 
 
+def test_post_rebalance_plan_empty_body_uses_sample(client):
+    # No holdings, no target -> sample portfolio vs default 60/40.
+    resp = client.post("/rebalance-plan", json={})
+    assert resp.status_code == 200
+    plan = resp.get_json()
+    assert plan["target_allocation"] == {"stock": 0.6, "bond": 0.4}
+    assert plan["needs_rebalance"] is True  # sample is deliberately drifted
+
+
 # --------------------------------------------------------------------------- #
 # /drift now uses the 5/25 band logic
 # --------------------------------------------------------------------------- #
