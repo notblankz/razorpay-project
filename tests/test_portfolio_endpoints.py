@@ -104,7 +104,8 @@ def test_post_drift_basic(client):
     assert resp.status_code == 200
     data = resp.get_json()
     assert set(data) == {
-        "current_allocation", "target_allocation", "drift", "needs_rebalance",
+        "current_allocation", "target_allocation", "drift",
+        "band_breaches", "needs_rebalance",
     }
     # drift = current - target, must sum to ~0 across classes
     assert pytest.approx(sum(data["drift"].values()), abs=1e-9) == 0.0

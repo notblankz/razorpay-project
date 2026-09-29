@@ -239,22 +239,36 @@ def load_asset_classes(path: str | None = None) -> dict[str, str]:
     return classes
 
 
+_TRUE_STRINGS = {"true", "1", "yes", "y", "t"}
+
+
+def _parse_bool(value) -> bool:
+    """Coerce a CSV cell to a bool (case-insensitive true/1/yes -> True)."""
+    return str(value).strip().lower() in _TRUE_STRINGS
+
+
 def load_holdings(path: str | None = None) -> list[dict]:
     """Load and validate the sample portfolio holdings.
 
     Validates the presence of ``ticker`` and ``shares`` columns, that share
     counts are numeric and strictly positive, and that no ticker is duplicated.
-    Returns the holdings in the shape the portfolio math expects.
+
+    Two optional columns are read when present, to support the (simulated) tax
+    logic in the rebalancer:
+        cost_basis  - price per share originally paid (numeric, > 0)
+        long_term   - whether the lot has been held long enough for the
+                      long-term tax rate (true/false)
 
     Args:
         path: Path to the holdings CSV. Defaults to ``data/holdings.csv``.
 
     Returns:
-        A list of ``{"ticker": str, "shares": float}`` dicts.
+        A list of dicts, each with ``ticker`` and ``shares``, plus
+        ``cost_basis`` and/or ``long_term`` when those columns are present.
 
     Raises:
-        DataError: If required columns are missing, shares are non-numeric or
-            non-positive, or a ticker appears more than once.
+        DataError: If required columns are missing, shares/cost_basis are
+            non-numeric or non-positive, or a ticker appears more than once.
     """
     path = path or HOLDINGS_PATH
     df = _read_csv(path)
@@ -277,7 +291,22 @@ def load_holdings(path: str | None = None) -> list[dict]:
         dupes = sorted(tickers[tickers.duplicated()].unique())
         raise DataError(f"holdings file has duplicate ticker(s) {dupes}: {path}")
 
-    return [
-        {"ticker": t, "shares": float(s)}
-        for t, s in zip(tickers, shares)
-    ]
+    cost_basis = None
+    if "cost_basis" in df.columns:
+        cost_basis = pd.to_numeric(df["cost_basis"], errors="coerce")
+        if cost_basis.isnull().any():
+            raise DataError(f"holdings file has non-numeric cost_basis: {path}")
+        if (cost_basis <= 0).any():
+            raise DataError(f"holdings file has non-positive cost_basis: {path}")
+
+    has_long_term = "long_term" in df.columns
+
+    rows: list[dict] = []
+    for i in range(len(df)):
+        row = {"ticker": tickers.iloc[i], "shares": float(shares.iloc[i])}
+        if cost_basis is not None:
+            row["cost_basis"] = float(cost_basis.iloc[i])
+        if has_long_term:
+            row["long_term"] = _parse_bool(df["long_term"].iloc[i])
+        rows.append(row)
+    return rows

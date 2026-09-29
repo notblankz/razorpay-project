@@ -39,7 +39,8 @@ def test_load_asset_classes_real_file():
 def test_load_holdings_real_file():
     holdings = dl.load_holdings()
     assert len(holdings) > 0
-    assert all(set(h) == {"ticker", "shares"} for h in holdings)
+    # ticker + shares are required; cost_basis/long_term are optional extras.
+    assert all({"ticker", "shares"} <= set(h) for h in holdings)
     assert all(h["shares"] > 0 for h in holdings)
 
 
@@ -178,3 +179,21 @@ def test_holdings_valid(tmp_path):
         {"ticker": "VOO", "shares": 10.0},
         {"ticker": "BND", "shares": 20.0},
     ]
+
+
+def test_holdings_with_optional_columns(tmp_path):
+    path = _write(
+        tmp_path, "holdings.csv",
+        "ticker,shares,cost_basis,long_term\nVOO,10,450,true\nBND,20,71,false\n",
+    )
+    assert dl.load_holdings(path) == [
+        {"ticker": "VOO", "shares": 10.0, "cost_basis": 450.0, "long_term": True},
+        {"ticker": "BND", "shares": 20.0, "cost_basis": 71.0, "long_term": False},
+    ]
+
+
+def test_holdings_non_positive_cost_basis(tmp_path):
+    path = _write(tmp_path, "holdings.csv",
+                  "ticker,shares,cost_basis\nVOO,10,0\n")
+    with pytest.raises(dl.DataError):
+        dl.load_holdings(path)

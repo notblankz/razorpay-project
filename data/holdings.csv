@@ -1,7 +1,7 @@
-ticker,shares
-VOO,50
-QQQ,30
-AAPL,40
-MSFT,20
-BND,300
-TLT,100
+ticker,shares,cost_basis,long_term
+VOO,50,450,true
+QQQ,30,380,true
+AAPL,40,170,false
+MSFT,20,250,true
+BND,150,71,true
+TLT,50,98,false
