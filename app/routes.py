@@ -12,11 +12,13 @@ from __future__ import annotations
 from flask import Blueprint, jsonify, request
 
 from app import portfolio as pf
+from app import signals as sg
 from app.data_loader import (
     DataError,
     load_asset_classes,
     load_holdings,
     load_latest_prices,
+    load_price_series,
 )
 
 bp = Blueprint("api", __name__)
@@ -136,6 +138,20 @@ def post_portfolio():
     body = request.get_json(silent=True) or {}
     holdings = _parse_holdings(body)
     return jsonify(_summarize(holdings))
+
+
+@bp.get("/signals")
+def get_signals():
+    """Per-asset trend and risk signals over the full price history.
+
+    Returns, for every ticker: latest price, short/long SMA, momentum,
+    annualized volatility, Sharpe ratio, and a trend label.
+    """
+    series = load_price_series()
+    return jsonify({
+        ticker: sg.asset_signals(prices)
+        for ticker, prices in series.items()
+    })
 
 
 @bp.post("/drift")

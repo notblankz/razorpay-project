@@ -167,6 +167,43 @@ def load_latest_prices(path: str | None = None) -> dict[str, float]:
     return latest_prices(load_price_history(path))
 
 
+def price_series(history: pd.DataFrame) -> dict[str, list[float]]:
+    """Convert a price-history frame into per-ticker price lists.
+
+    Turns the wide DataFrame into ``{ticker: [p0, p1, ...]}`` (oldest-first),
+    dropping the ``date`` column. This is the plain-list shape the signals math
+    expects, keeping numpy/pandas out of ``signals.py``.
+
+    Args:
+        history: A DataFrame as returned by :func:`load_price_history`.
+
+    Returns:
+        Mapping of ticker to its ordered list of prices as floats.
+    """
+    return {
+        col: [float(x) for x in history[col]]
+        for col in history.columns
+        if col != "date"
+    }
+
+
+def load_price_series(path: str | None = None) -> dict[str, list[float]]:
+    """Convenience: load the price history and return per-ticker price lists.
+
+    Equivalent to ``price_series(load_price_history(path))``.
+
+    Args:
+        path: Path to the prices CSV. Defaults to ``data/prices.csv``.
+
+    Returns:
+        Mapping of ticker to its ordered list of prices.
+
+    Raises:
+        DataError: For any validation failure in the underlying load.
+    """
+    return price_series(load_price_history(path))
+
+
 def load_asset_classes(path: str | None = None) -> dict[str, str]:
     """Load the ticker -> asset-class mapping from the assets metadata file.
 
